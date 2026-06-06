@@ -642,6 +642,118 @@
     #spinBtn { width: 90px; height: 90px; font-size: 0.95rem; }
   }
 
+  /* ── AUTO BUTTON ── */
+  .auto-control-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-auto {
+    padding: 6px 14px;
+    border-radius: 10px;
+    border: 1.5px solid #d4ccff;
+    background: white;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-auto:hover { background: var(--surface2); border-color: var(--accent); }
+  .btn-auto.active {
+    background: linear-gradient(135deg, #6c47ff, #a855f7);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 4px 16px rgba(108,71,255,0.45);
+    animation: autoPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes autoPulse {
+    0%, 100% { box-shadow: 0 4px 16px rgba(108,71,255,0.45); }
+    50% { box-shadow: 0 4px 28px rgba(168,85,247,0.7); }
+  }
+  .auto-interval-wrap {
+    display: none;
+    animation: fadeSlide 0.2s ease;
+  }
+  .auto-interval-wrap.visible { display: flex; }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateX(-6px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* ── AUTO TIMER ── */
+  .auto-timer-display {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    animation: timerAppear 0.35s cubic-bezier(0.175,0.885,0.32,1.275);
+  }
+  .auto-timer-display.visible { display: flex; }
+  @keyframes timerAppear {
+    from { opacity: 0; transform: scale(0.6) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .timer-ring-wrap {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .timer-ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .timer-ring-bg {
+    fill: none;
+    stroke: #e8e4ff;
+    stroke-width: 7;
+  }
+  .timer-ring-fill {
+    fill: none;
+    stroke: url(#timerGrad);
+    stroke-width: 7;
+    stroke-linecap: round;
+    stroke-dasharray: 213.6;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.9s linear;
+    filter: drop-shadow(0 0 5px rgba(108,71,255,0.5));
+  }
+  .timer-digits {
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    position: relative;
+    z-index: 2;
+    letter-spacing: -1px;
+    text-shadow: 0 2px 8px rgba(108,71,255,0.2);
+    min-width: 42px;
+    text-align: center;
+    transition: color 0.3s;
+  }
+  .timer-digits.urgent { color: #ff6b6b; animation: urgentPulse 0.4s ease-in-out infinite alternate; }
+  @keyframes urgentPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.12); }
+  }
+  .timer-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    color: var(--text2);
+    text-transform: uppercase;
+  }
+
   /* ── WHEEL TICK ANIMATION ── */
   .pointer-bounce {
     animation: pointerBounce 0.08s ease-in-out;
@@ -685,6 +797,17 @@
       <span class="toggle-pill"></span>
       🔊 Sound
     </label>
+    <div class="auto-control-group">
+      <button class="btn-auto" id="autoBtn" onclick="toggleAuto()">⚡ Auto</button>
+      <div class="auto-interval-wrap" id="autoIntervalWrap">
+        <select class="btn-small" id="autoIntervalSelect">
+          <option value="3">3s</option>
+          <option value="5" selected>5s</option>
+          <option value="7">7s</option>
+          <option value="10">10s</option>
+        </select>
+      </div>
+    </div>
     <button class="btn-small" onclick="resetHistory()">Clear History</button>
   </div>
 
@@ -706,6 +829,22 @@
     </div>
 
     <div class="spin-section">
+      <div class="auto-timer-display" id="autoTimerDisplay">
+        <div class="timer-ring-wrap">
+          <svg class="timer-ring" viewBox="0 0 80 80">
+            <defs>
+              <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6c47ff"/>
+                <stop offset="100%" stop-color="#a855f7"/>
+              </linearGradient>
+            </defs>
+            <circle class="timer-ring-bg" cx="40" cy="40" r="34"/>
+            <circle class="timer-ring-fill" id="timerRingFill" cx="40" cy="40" r="34"/>
+          </svg>
+          <div class="timer-digits" id="timerDigits">5</div>
+        </div>
+        <div class="timer-label">AUTO</div>
+      </div>
       <button id="spinBtn" onclick="startSpin()">SPIN!</button>
       <div class="result-display" id="resultDisplay">
         <div class="result-label">Result</div>
@@ -1368,8 +1507,118 @@ function resetHistory() {
 }
 
 // ───────────────────────────────────────────
-//  HEADER SPARKLES
+//  AUTO SPIN
 // ───────────────────────────────────────────
+let autoActive = false;
+let autoCountdown = 0;
+let autoIntervalId = null;
+let autoCountdownRafId = null;
+let autoCountdownStart = null;
+
+const RING_CIRCUMFERENCE = 2 * Math.PI * 34; // 213.6
+
+function toggleAuto() {
+  autoActive = !autoActive;
+  const btn = document.getElementById('autoBtn');
+  const wrap = document.getElementById('autoIntervalWrap');
+  const timerDisplay = document.getElementById('autoTimerDisplay');
+
+  if (autoActive) {
+    btn.classList.add('active');
+    btn.textContent = '⚡ Auto ON';
+    wrap.classList.add('visible');
+    timerDisplay.classList.add('visible');
+    startAutoCountdown();
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '⚡ Auto';
+    wrap.classList.remove('visible');
+    timerDisplay.classList.remove('visible');
+    stopAutoCountdown();
+  }
+}
+
+function getAutoInterval() {
+  return parseInt(document.getElementById('autoIntervalSelect').value);
+}
+
+function startAutoCountdown() {
+  stopAutoCountdown();
+  // If currently spinning, wait for it to finish then start timer
+  if (isSpinning) {
+    const checkDone = setInterval(() => {
+      if (!isSpinning && autoActive) {
+        clearInterval(checkDone);
+        startAutoCountdown();
+      } else if (!autoActive) {
+        clearInterval(checkDone);
+      }
+    }, 200);
+    return;
+  }
+  autoCountdown = getAutoInterval();
+  updateTimerDisplay(autoCountdown, autoCountdown);
+  autoCountdownStart = performance.now();
+  tickAutoCountdown();
+}
+
+function stopAutoCountdown() {
+  if (autoIntervalId) { clearTimeout(autoIntervalId); autoIntervalId = null; }
+  if (autoCountdownRafId) { cancelAnimationFrame(autoCountdownRafId); autoCountdownRafId = null; }
+  autoCountdownStart = null;
+}
+
+function tickAutoCountdown() {
+  if (!autoActive) return;
+  const total = getAutoInterval() * 1000;
+  const elapsed = performance.now() - autoCountdownStart;
+  const remaining = Math.max(0, total - elapsed);
+  const secs = Math.ceil(remaining / 1000);
+  updateTimerDisplay(secs, getAutoInterval());
+
+  if (remaining <= 0) {
+    // Fire spin
+    if (!isSpinning && autoActive) {
+      startSpin();
+      // After spin ends, restart countdown
+      const waitForSpin = () => {
+        if (!isSpinning && autoActive) {
+          autoCountdown = getAutoInterval();
+          autoCountdownStart = performance.now();
+          updateTimerDisplay(autoCountdown, autoCountdown);
+          autoCountdownRafId = requestAnimationFrame(tickAutoCountdown);
+        } else if (autoActive) {
+          autoCountdownRafId = requestAnimationFrame(waitForSpin);
+        }
+      };
+      autoCountdownRafId = requestAnimationFrame(waitForSpin);
+    }
+    return;
+  }
+  autoCountdownRafId = requestAnimationFrame(tickAutoCountdown);
+}
+
+function updateTimerDisplay(secs, total) {
+  const digits = document.getElementById('timerDigits');
+  const ring = document.getElementById('timerRingFill');
+  digits.textContent = secs;
+  // Ring: full circle when secs==total, empty when 0
+  const fraction = secs / total;
+  const offset = RING_CIRCUMFERENCE * (1 - fraction);
+  ring.style.strokeDashoffset = offset;
+  // Urgent flash at ≤2s
+  if (secs <= 2) {
+    digits.classList.add('urgent');
+    ring.style.stroke = '#ff6b6b';
+    ring.style.filter = 'drop-shadow(0 0 6px rgba(255,107,107,0.7))';
+  } else {
+    digits.classList.remove('urgent');
+    ring.style.stroke = '';
+    ring.style.filter = '';
+  }
+}
+
+
 function createSparkles() {
   const container = document.getElementById('headerSparkles');
   const colors = ['#6c47ff','#ff6b6b','#ffd93d','#22d3ee'];
